@@ -11,8 +11,8 @@ import 'package:sqflite/sqflite.dart';
 class AppDatabase {
   static final AppDatabase instance = AppDatabase._init();
   static Database? _database;
-  static const String _dbName = 'sunan_ibn_majah.db';
-  static const int _dbVersion = 9;
+  static const String _dbName = 'sunan_an_nasai.db';
+  static const int _dbVersion = 12;
 
   AppDatabase._init();
 
@@ -39,6 +39,7 @@ class AppDatabase {
     return await openDatabase(
       dbPath,
       version: _dbVersion,
+      onCreate: _onCreate,
       onOpen: _onOpen,
       onUpgrade: _onUpgrade,
     );
@@ -47,15 +48,15 @@ class AppDatabase {
   /// Update chapter titles with proper Arabic and Urdu names (v6 migration)
   Future<void> _updateChapterTitlesV6(Database db) async {
     final Map<int, List<String>> titles = {
-      1:  ['كتاب المقدمة (السُّنَّة)', 'کتاب السنہ (مقدمہ)'],
-      2:  ['كتاب الطهارة وسُنَنِها', 'کتاب الطہارت اور اس کے سنن'],
-      3:  ['كتاب الصلاة', 'کتاب الصلاۃ'],
-      4:  ['كتاب الأذان والسُّنَّة فيها', 'کتاب اذان اور اس کے سنن'],
-      5:  ['كتاب المساجد والجماعات', 'کتاب مساجد اور جماعتوں کے بارے میں'],
-      6:  ['كتاب إقامة الصلاة والسُّنَّة فيها', 'کتاب اقامت صلاۃ اور اس کے سنن'],
-      7:  ['كتاب الجنائز', 'کتاب الجنائز'],
-      8:  ['كتاب الصيام', 'کتاب الصیام (روزے)'],
-      9:  ['كتاب الزكاة', 'کتاب الزکاۃ'],
+      1: ['كتاب المقدمة (السُّنَّة)', 'کتاب السنہ (مقدمہ)'],
+      2: ['كتاب الطهارة وسُنَنِها', 'کتاب الطہارت اور اس کے سنن'],
+      3: ['كتاب الصلاة', 'کتاب الصلاۃ'],
+      4: ['كتاب الأذان والسُّنَّة فيها', 'کتاب اذان اور اس کے سنن'],
+      5: ['كتاب المساجد والجماعات', 'کتاب مساجد اور جماعتوں کے بارے میں'],
+      6: ['كتاب إقامة الصلاة والسُّنَّة فيها', 'کتاب اقامت صلاۃ اور اس کے سنن'],
+      7: ['كتاب الجنائز', 'کتاب الجنائز'],
+      8: ['كتاب الصيام', 'کتاب الصیام (روزے)'],
+      9: ['كتاب الزكاة', 'کتاب الزکاۃ'],
       10: ['كتاب النكاح', 'کتاب النکاح'],
       11: ['كتاب الطلاق', 'کتاب الطلاق'],
       12: ['كتاب الكفارات', 'کتاب الکفارات'],
@@ -110,7 +111,10 @@ class AppDatabase {
   Future<void> _copyFromAssets(String targetPath) async {
     try {
       final data = await rootBundle.load('assets/db/$_dbName');
-      final bytes = data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
+      final bytes = data.buffer.asUint8List(
+        data.offsetInBytes,
+        data.lengthInBytes,
+      );
       await File(targetPath).writeAsBytes(bytes, flush: true);
     } catch (e) {
       // If copy fails, the database will be created from scratch
@@ -121,16 +125,21 @@ class AppDatabase {
   /// Web full database initialization (loads full 26MB asset)
   Future<Database> _openWebDatabase() async {
     // We use a versioned name on web to force a clean IndexedDB copy
-    const webDbName = 'sunan_ibn_majah_web_v1.db';
+    const webDbName = 'sunan_an_nasai_web_v1.db';
 
     // Check if DB already exists in IndexedDB
     bool exists = await databaseFactory.databaseExists(webDbName);
 
     if (!exists) {
-      debugPrintError('Web database not found. Copying from assets... This may take a moment.');
+      debugPrintError(
+        'Web database not found. Copying from assets... This may take a moment.',
+      );
       try {
         final data = await rootBundle.load('assets/db/$_dbName');
-        final bytes = data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
+        final bytes = data.buffer.asUint8List(
+          data.offsetInBytes,
+          data.lengthInBytes,
+        );
         await databaseFactory.writeDatabaseBytes(webDbName, bytes);
         debugPrintError('Web database successfully copied from assets.');
       } catch (e) {
@@ -139,7 +148,7 @@ class AppDatabase {
         return await openDatabase(
           webDbName,
           version: _dbVersion,
-          onCreate: _createWebFallback,
+          onCreate: _onCreate,
           onOpen: _onOpen,
           onUpgrade: _onUpgrade,
         );
@@ -154,14 +163,30 @@ class AppDatabase {
     );
   }
 
-  Future<void> _createWebFallback(Database db, int version) async {
+  Future<void> _onCreate(Database db, int version) async {
     await _createDataTables(db);
     await _createUserTables(db);
     await _createIndexes(db);
   }
 
+  /// Returns true if the core data table (hadiths) exists.
+  Future<bool> _dataTablesExist(Database db) async {
+    final result = await db.rawQuery(
+      "SELECT name FROM sqlite_master WHERE type='table' AND name='hadiths'",
+    );
+    return result.isNotEmpty;
+  }
+
   /// Create user-data tables (these are added on top of the pre-built asset DB)
   Future<void> _onOpen(Database db) async {
+    final tablesExist = await _dataTablesExist(db);
+    if (!tablesExist) {
+      debugPrintError(
+        'Data tables not found (asset copy may have failed). '
+        'Creating schema from scratch.',
+      );
+      await _createDataTables(db);
+    }
     await _createUserTables(db);
     await _createIndexes(db);
     await db.execute('PRAGMA foreign_keys = ON');
@@ -184,34 +209,51 @@ class AppDatabase {
     if (oldVersion < 9) {
       await _migrateToV9(db);
     }
+    if (oldVersion < 11) {
+      if (!kIsWeb) {
+        await _updateDatabaseV8(
+          db,
+        ); // Reuses the v8 logic to pull latest asset_db and replace chapters/hadiths
+      }
+    }
+    if (oldVersion < 12) {
+      if (!kIsWeb) {
+        await _updateDatabaseV8(
+          db,
+        ); // v12: Nasai 3-language DB with average grade
+      }
+    }
   }
 
   /// Re-copy data tables from asset DB while preserving user data (v8 migration)
   Future<void> _updateDatabaseV8(Database db) async {
     try {
       final data = await rootBundle.load('assets/db/$_dbName');
-      final bytes = data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
+      final bytes = data.buffer.asUint8List(
+        data.offsetInBytes,
+        data.lengthInBytes,
+      );
       // Write asset DB to a temp file
       final dir = await getApplicationDocumentsDirectory();
       final tmpPath = join(dir.path, 'databases', 'temp_asset_v8.db');
       await File(tmpPath).writeAsBytes(bytes, flush: true);
-      
+
       // Attach the asset DB and copy chapter/hadith data
       await db.execute("ATTACH DATABASE '$tmpPath' AS asset_db");
-      
+
       // Update chapters from asset
       await db.execute('DELETE FROM chapters');
       await db.execute('INSERT INTO chapters SELECT * FROM asset_db.chapters');
-      
+
       // Update hadiths from asset
       await db.execute('DELETE FROM hadiths');
       await db.execute('INSERT INTO hadiths SELECT * FROM asset_db.hadiths');
-      
+
       await db.execute('DETACH DATABASE asset_db');
-      
+
       // Clean up temp file
       await File(tmpPath).delete();
-      
+
       debugPrintError('Data tables refreshed from asset DB v8 successfully.');
     } catch (e) {
       debugPrintError('Failed to refresh data from assets v8: $e');
@@ -229,10 +271,14 @@ CREATE TABLE IF NOT EXISTS collection_hadiths (
   FOREIGN KEY (hadith_id) REFERENCES hadiths (id),
   UNIQUE(collection_id, hadith_id)
 )''');
-    
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_collection_hadith ON collection_hadiths(collection_id)');
-    
-    debugPrintError('Database migrated to v9 (collection_hadiths table and index created).');
+
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_collection_hadith ON collection_hadiths(collection_id)',
+    );
+
+    debugPrintError(
+      'Database migrated to v9 (collection_hadiths table and index created).',
+    );
   }
 
   Future<void> _createDataTables(Database db) async {
@@ -306,14 +352,44 @@ CREATE TABLE IF NOT EXISTS reading_progress (
   }
 
   Future<void> _createIndexes(Database db) async {
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_hadiths_chapter ON hadiths(chapter_id)');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_hadiths_number ON hadiths(hadith_number)');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_bookmarks_hadith ON bookmarks(hadith_id)');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_notes_hadith ON notes(hadith_id)');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_progress_chapter ON reading_progress(chapter_id)');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_collection_hadith ON collection_hadiths(collection_id)');
-  }
+    final hadithsExist = (await db.rawQuery(
+      "SELECT name FROM sqlite_master WHERE type='table' AND name='hadiths'",
+    )).isNotEmpty;
 
+    if (hadithsExist) {
+      await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_hadiths_chapter ON hadiths(chapter_id)',
+      );
+      await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_hadiths_number ON hadiths(hadith_number)',
+      );
+    }
+
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_bookmarks_hadith ON bookmarks(hadith_id)',
+    );
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_notes_hadith ON notes(hadith_id)',
+    );
+
+    final progressExist = (await db.rawQuery(
+      "SELECT name FROM sqlite_master WHERE type='table' AND name='reading_progress'",
+    )).isNotEmpty;
+    if (progressExist) {
+      await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_progress_chapter ON reading_progress(chapter_id)',
+      );
+    }
+
+    final collectionHadithsExist = (await db.rawQuery(
+      "SELECT name FROM sqlite_master WHERE type='table' AND name='collection_hadiths'",
+    )).isNotEmpty;
+    if (collectionHadithsExist) {
+      await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_collection_hadith ON collection_hadiths(collection_id)',
+      );
+    }
+  }
 
   /// Delete corrupted DB and re-copy from assets
   Future<void> resetDatabase() async {
@@ -335,5 +411,8 @@ CREATE TABLE IF NOT EXISTS reading_progress (
 
 void debugPrintError(String msg) {
   // ignore: avoid_print
-  assert(() { print('[AppDatabase] $msg'); return true; }());
+  assert(() {
+    print('[AppDatabase] $msg');
+    return true;
+  }());
 }

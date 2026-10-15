@@ -3,9 +3,13 @@ import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
   // Colors
-  static const Color primaryGreen = Color(0xFF008080);
-  static const Color primaryDark = Color(0xFF004D40);
-  static const Color primaryLight = Color(0xFF4DB6AC);
+  static const Color primaryGreen = Color(
+    0xFF00382E,
+  ); // Very Dark Emerald Green
+  static const Color primaryDark = Color(0xFF00251E); // Even Darker
+  static const Color primaryLight = Color(
+    0xFF004D40,
+  ); // Standard Emerald as Light
   static const Color accentGold = Color(0xFFD4A843);
   static const Color backgroundLight = Color(0xFFF4F6F8);
   static const Color backgroundDark = Color(0xFF121212);
@@ -21,13 +25,19 @@ class AppTheme {
 
   static Color getPrimaryColor(String colorName) {
     switch (colorName) {
-      case 'Blue': return Colors.blue;
-      case 'Purple': return Colors.deepPurple;
-      case 'Orange': return Colors.deepOrange;
-      case 'Dark Brown': return const Color(0xFF5D4037);
-      case 'Dark Blue': return const Color(0xFF1A237E);
+      case 'Blue':
+        return Colors.blue;
+      case 'Purple':
+        return Colors.deepPurple;
+      case 'Orange':
+        return Colors.deepOrange;
+      case 'Dark Brown':
+        return const Color(0xFF5D4037);
+      case 'Dark Blue':
+        return const Color(0xFF1A237E);
       case 'Green':
-      default: return primaryGreen;
+      default:
+        return primaryGreen;
     }
   }
 
@@ -88,11 +98,15 @@ class AppTheme {
       ),
       switchTheme: SwitchThemeData(
         thumbColor: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) return primaryColor;
+          if (states.contains(WidgetState.selected)) {
+            return primaryColor;
+          }
           return Colors.grey;
         }),
         trackColor: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) return primaryColor.withValues(alpha: 0.4);
+          if (states.contains(WidgetState.selected)) {
+            return primaryColor.withValues(alpha: 0.4);
+          }
           return Colors.grey.withValues(alpha: 0.3);
         }),
       ),
@@ -118,7 +132,9 @@ class AppTheme {
   }
 
   static ThemeData darkTheme(Color primaryColor) {
-    final baseTextTheme = GoogleFonts.rubikTextTheme(ThemeData.dark().textTheme);
+    final baseTextTheme = GoogleFonts.rubikTextTheme(
+      ThemeData.dark().textTheme,
+    );
 
     return ThemeData(
       useMaterial3: true,
@@ -151,7 +167,9 @@ class AppTheme {
           fontWeight: FontWeight.bold,
         ),
         bodyLarge: baseTextTheme.bodyLarge?.copyWith(color: textOnDark),
-        bodyMedium: baseTextTheme.bodyMedium?.copyWith(color: Colors.grey.shade400),
+        bodyMedium: baseTextTheme.bodyMedium?.copyWith(
+          color: Colors.grey.shade400,
+        ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
@@ -175,11 +193,15 @@ class AppTheme {
       ),
       switchTheme: SwitchThemeData(
         thumbColor: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) return primaryLight;
+          if (states.contains(WidgetState.selected)) {
+            return primaryLight;
+          }
           return Colors.grey;
         }),
         trackColor: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) return primaryLight.withValues(alpha: 0.4);
+          if (states.contains(WidgetState.selected)) {
+            return primaryLight.withValues(alpha: 0.4);
+          }
           return Colors.grey.withValues(alpha: 0.3);
         }),
       ),
@@ -216,23 +238,34 @@ class AppTheme {
 
   static TextStyle get urduText {
     return GoogleFonts.notoNastaliqUrdu(
-      fontSize: 20,
-      height: 2.4,
-      fontWeight: FontWeight.w400,
+      fontSize: 24,
+      height: 1.8,
+      fontWeight: FontWeight.w500,
     );
   }
 
   static Color? getFontColor(String colorName, bool isDark) {
     switch (colorName) {
-      case 'Black': return isDark ? Colors.white : Colors.black;
-      case 'Dark Brown': return isDark ? const Color(0xFFFFCCBC) : const Color(0xFF5D4037);
-      case 'Dark Blue': return isDark ? const Color(0xFFBBDEFB) : const Color(0xFF1A237E);
-      case 'Dark Green': return isDark ? const Color(0xFFC8E6C9) : const Color(0xFF1B5E20);
-      default: return isDark ? Colors.white : null;
+      case 'Black':
+        return isDark ? Colors.white : Colors.black;
+      case 'Dark Brown':
+        return isDark ? const Color(0xFFFFCCBC) : const Color(0xFF5D4037);
+      case 'Dark Blue':
+        return isDark ? const Color(0xFFBBDEFB) : const Color(0xFF1A237E);
+      case 'Dark Green':
+        return isDark ? const Color(0xFFC8E6C9) : const Color(0xFF1B5E20);
+      default:
+        return isDark ? Colors.white : null;
     }
   }
 
-  static TextStyle safeGetFont(String fontFamily, {double? fontSize, double? height, Color? color, FontWeight? fontWeight}) {
+  static TextStyle safeGetFont(
+    String fontFamily, {
+    double? fontSize,
+    double? height,
+    Color? color,
+    FontWeight? fontWeight,
+  }) {
     String lookupName = fontFamily;
     if (fontFamily == 'AlQalam' || fontFamily == 'PDMS Saleem') {
       lookupName = 'Amiri';

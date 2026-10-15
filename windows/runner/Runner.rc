@@ -1,4 +1,4 @@
-// Microsoft Visual C++ generated resource script.
+﻿// Microsoft Visual C++ generated resource script.
 //
 #pragma code_page(65001)
 #include "resource.h"
@@ -89,13 +89,13 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "com.example" "\0"
-            VALUE "FileDescription", "Shahih Bukhari - Urdu & English" "\0"
+            VALUE "CompanyName", "Sunan An-Nasai" "\0"
+            VALUE "FileDescription", "Sunan An-Nasai – All Languages" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "Shahih Bukhari" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2026 com.example. All rights reserved." "\0"
-            VALUE "OriginalFilename", "sunan_ibn_majah.exe" "\0"
-            VALUE "ProductName", "Shahih Bukhari - Urdu & English" "\0"
+            VALUE "InternalName", "sunan_an_nasai" "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2026. All rights reserved." "\0"
+            VALUE "OriginalFilename", "sunan_an_nasai.exe" "\0"
+            VALUE "ProductName", "Sunan An-Nasai – All Languages" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

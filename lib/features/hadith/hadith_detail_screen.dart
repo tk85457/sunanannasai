@@ -9,8 +9,13 @@ import '../../data/repositories/hadith_repository.dart';
 import '../../domain/models/models.dart';
 import '../settings/settings_provider.dart';
 import '../collections/collections_screen.dart';
+import '../collections/collection_detail_screen.dart' show collectionHadithsProvider;
+import '../bookmarks/bookmarks_screen.dart' show bookmarkedHadithsProvider;
+import '../notes/notes_screen.dart' show allNotesWithInfoProvider;
 import '../hadith/hadith_list_screen.dart'; // To access singleChapterProvider
+import '../home/home_screen.dart' show statsProvider, chapterProgressProvider;
 import 'share_image_screen.dart';
+import '../../core/services/in_app_review_service.dart';
 
 final hadithsByChapterProvider = FutureProvider.family<List<Hadith>, int>((
   ref,
@@ -61,6 +66,21 @@ class _HadithDetailScreenState extends ConsumerState<HadithDetailScreen> {
     super.initState();
     _currentIndex = widget.startIndex;
     _pageController = PageController(initialPage: widget.startIndex);
+    _onHadithViewed();
+    // Prompt review on 2nd detail visit (with 3-day cooldown if dismissed/cancelled)
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        InAppReviewService.checkPromptOnHadithDetail();
+      }
+    });
+  }
+
+  void _onHadithViewed() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        InAppReviewService.incrementHadithReadAndCheckPrompt(context);
+      }
+    });
   }
 
   @override
@@ -72,7 +92,13 @@ class _HadithDetailScreenState extends ConsumerState<HadithDetailScreen> {
   void _saveProgress() {
     final repo = ref.read(hadithRepositoryProvider);
     repo.saveReadingProgress(widget.chapterId, _currentIndex).then((_) {
-      if (mounted) ref.invalidate(lastProgressProvider);
+      if (mounted) {
+        ref.invalidate(lastProgressProvider);
+        // FIX: Home screen "Insights" card (bookmarks/notes/progress%)
+        // was stuck on stale numbers until a manual pull-to-refresh.
+        ref.invalidate(statsProvider);
+        ref.invalidate(chapterProgressProvider);
+      }
     });
   }
 
@@ -86,7 +112,9 @@ class _HadithDetailScreenState extends ConsumerState<HadithDetailScreen> {
       appBar: AppBar(
         title: Consumer(
           builder: (context, ref, _) {
-            final chapterAsync = ref.watch(singleChapterProvider(widget.chapterId));
+            final chapterAsync = ref.watch(
+              singleChapterProvider(widget.chapterId),
+            );
             final settings = ref.watch(settingsProvider);
             return chapterAsync.when(
               data: (chapter) => Text(
@@ -161,7 +189,10 @@ class _HadithDetailScreenState extends ConsumerState<HadithDetailScreen> {
             );
           }
           if (_currentIndex >= hadiths.length) _currentIndex = 0;
-          _saveProgress();
+          // FIX: _saveProgress() removed from build() — it was firing on
+          // every widget rebuild (theme change, provider updates, etc.)
+          // causing excessive DB writes. Now only called from
+          // onPageChanged (user swipe) and the back-button handler.
           return _buildHadithView(hadiths, hadiths.length, settings, isDark);
         },
       ),
@@ -202,7 +233,7 @@ class _HadithDetailScreenState extends ConsumerState<HadithDetailScreen> {
                           ? 'حدیث نمبر ${_currentIndex + 2}'
                           : '',
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.6),
+                        color: Colors.white.withValues(alpha: 0.6),
                         fontSize: 14,
                       ),
                     ),
@@ -245,7 +276,7 @@ class _HadithDetailScreenState extends ConsumerState<HadithDetailScreen> {
                     child: Text(
                       _currentIndex > 0 ? 'حدیث نمبر $_currentIndex' : '',
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.6),
+                        color: Colors.white.withValues(alpha: 0.6),
                         fontSize: 14,
                       ),
                     ),
@@ -267,6 +298,7 @@ class _HadithDetailScreenState extends ConsumerState<HadithDetailScreen> {
                 _currentIndex = index;
               });
               _saveProgress();
+              _onHadithViewed();
             },
             itemBuilder: (context, index) {
               final activeHadith = hadiths[index];
@@ -313,16 +345,16 @@ class _HadithDetailScreenState extends ConsumerState<HadithDetailScreen> {
                                   textDirection: TextDirection.rtl,
                                   style: AppTheme.safeGetFont(
                                     settings.arabicFontFamily,
-                                    color:
-                                        AppTheme.getFontColor(
-                                          settings.arabicFontColor,
-                                          isDark,
-                                        ) ??
+                                    color: AppTheme.getFontColor(
+                                      settings.arabicFontColor,
+                                      isDark,
+                                    ) ??
                                         (isDark
                                             ? Colors.greenAccent
                                             : Theme.of(context).primaryColor),
                                     fontSize: settings.arabicFontSize,
-                                    height: 2.2,
+                                    height: 2.3,
+                                    fontWeight: FontWeight.w500,
                                   ),
                                 ),
                               ],
@@ -425,10 +457,10 @@ class _HadithDetailScreenState extends ConsumerState<HadithDetailScreen> {
                                       const SizedBox(height: 12),
                                       Text(
                                         settings.titleLanguage == 'English'
-                                            ? 'Sunan Ibn Majah Hadith No: ${activeHadith.hadithNumber} Chapter: ${chapter?.titleEnglish ?? ''}'
+                                            ? 'Sunan An-Nasai Hadith No: ${activeHadith.hadithNumber} Chapter: ${chapter?.titleEnglish ?? ''}'
                                             : settings.titleLanguage == 'Arabic'
-                                            ? 'سنن ابن ماجہ حدیث رقم: ${activeHadith.hadithNumber} باب: ${chapter?.titleArabic ?? ''}'
-                                            : 'سنن ابن ماجہ حدیث نمبر: ${activeHadith.hadithNumber} فصل: ${chapter?.titleUrdu ?? ''}',
+                                            ? 'سنن النسائی حدیث رقم: ${activeHadith.hadithNumber} باب: ${chapter?.titleArabic ?? ''}'
+                                            : 'سنن النسائی حدیث نمبر: ${activeHadith.hadithNumber} فصل: ${chapter?.titleUrdu ?? ''}',
                                         textAlign: TextAlign.center,
                                         textDirection:
                                             settings.titleLanguage == 'English'
@@ -457,9 +489,10 @@ class _HadithDetailScreenState extends ConsumerState<HadithDetailScreen> {
                             // Grade Chip
                             Consumer(
                               builder: (ctx, ref, _) {
-                                final gradeSettings = ref.watch(settingsProvider);
+                                final gradeSettings = ref.watch(
+                                  settingsProvider,
+                                );
                                 if (activeHadith.grade.isNotEmpty) {
-
                                   // ── Complete Grade Translation Maps ──
                                   const Map<String, String> gradeToUrdu = {
                                     'Sahih': 'صحیح',
@@ -515,7 +548,8 @@ class _HadithDetailScreenState extends ConsumerState<HadithDetailScreen> {
                                   };
 
                                   // ── Color Category ──
-                                  final gradeLower = activeHadith.grade.toLowerCase();
+                                  final gradeLower = activeHadith.grade
+                                      .toLowerCase();
                                   final isSahihGrade =
                                       gradeLower.startsWith('sahih') ||
                                       activeHadith.grade.contains('صحيح') ||
@@ -538,25 +572,31 @@ class _HadithDetailScreenState extends ConsumerState<HadithDetailScreen> {
                                   final Color gradeColor = isSahihGrade
                                       ? Colors.green.shade600
                                       : isHasanGrade
-                                          ? Colors.teal.shade600
-                                          : isBadGrade
-                                              ? Colors.red.shade600
-                                              : Colors.grey.shade600;
+                                      ? Colors.teal.shade600
+                                      : isBadGrade
+                                      ? Colors.red.shade600
+                                      : Colors.grey.shade600;
 
-                                  final IconData gradeIcon = isSahihGrade || isHasanGrade
+                                  final IconData gradeIcon =
+                                      isSahihGrade || isHasanGrade
                                       ? Icons.check_circle_outline
                                       : isBadGrade
-                                          ? Icons.error_outline
-                                          : Icons.info_outline;
+                                      ? Icons.error_outline
+                                      : Icons.info_outline;
 
                                   // ── Translated Label ──
                                   String translatedGrade;
                                   String gradeLabel;
                                   if (gradeSettings.titleLanguage == 'Urdu') {
-                                    translatedGrade = gradeToUrdu[activeHadith.grade] ?? activeHadith.grade;
+                                    translatedGrade =
+                                        gradeToUrdu[activeHadith.grade] ??
+                                        activeHadith.grade;
                                     gradeLabel = 'درجہ: $translatedGrade';
-                                  } else if (gradeSettings.titleLanguage == 'Arabic') {
-                                    translatedGrade = gradeToArabic[activeHadith.grade] ?? activeHadith.grade;
+                                  } else if (gradeSettings.titleLanguage ==
+                                      'Arabic') {
+                                    translatedGrade =
+                                        gradeToArabic[activeHadith.grade] ??
+                                        activeHadith.grade;
                                     gradeLabel = 'الدرجة: $translatedGrade';
                                   } else {
                                     gradeLabel = 'Grade: ${activeHadith.grade}';
@@ -564,23 +604,38 @@ class _HadithDetailScreenState extends ConsumerState<HadithDetailScreen> {
 
                                   return Container(
                                     margin: const EdgeInsets.only(bottom: 16),
-                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                      vertical: 8,
+                                    ),
                                     decoration: BoxDecoration(
                                       color: gradeColor.withValues(alpha: 0.1),
                                       borderRadius: BorderRadius.circular(20),
-                                      border: Border.all(color: gradeColor.withValues(alpha: 0.3)),
+                                      border: Border.all(
+                                        color: gradeColor.withValues(
+                                          alpha: 0.3,
+                                        ),
+                                      ),
                                     ),
                                     child: Row(
                                       mainAxisSize: MainAxisSize.min,
-                                      textDirection: gradeSettings.titleLanguage == 'English'
+                                      textDirection:
+                                          gradeSettings.titleLanguage ==
+                                              'English'
                                           ? TextDirection.ltr
                                           : TextDirection.rtl,
                                       children: [
-                                        Icon(gradeIcon, size: 18, color: gradeColor),
+                                        Icon(
+                                          gradeIcon,
+                                          size: 18,
+                                          color: gradeColor,
+                                        ),
                                         const SizedBox(width: 8),
                                         Text(
                                           gradeLabel,
-                                          textDirection: gradeSettings.titleLanguage == 'English'
+                                          textDirection:
+                                              gradeSettings.titleLanguage ==
+                                                  'English'
                                               ? TextDirection.ltr
                                               : TextDirection.rtl,
                                           style: TextStyle(
@@ -708,60 +763,13 @@ class _HadithDetailScreenState extends ConsumerState<HadithDetailScreen> {
     );
   }
 
-  Widget _buildTextCard(
-    String labelAr,
-    String labelEn,
-    String text,
-    TextStyle style,
-    TextAlign align,
-    TextDirection dir,
-    bool isDark,
-  ) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: isDark ? AppTheme.cardDark : Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: Theme.of(context).primaryColor.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(
-              labelEn,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: Theme.of(context).primaryColor,
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-          Directionality(
-            textDirection: dir,
-            child: SelectableText(text, textAlign: align, style: style),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildActionBar(Hadith hadith, bool isDark) {
+    // FIXED: Add bottom safe-area padding so the system navigation bar
+    // (3-button nav or gesture bar on edge-to-edge devices) does not
+    // overlap/cover these action buttons.
+    final bottomInset = MediaQuery.of(context).padding.bottom;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+      padding: EdgeInsets.only(left: 4, right: 4, top: 6, bottom: 6 + bottomInset),
       decoration: BoxDecoration(
         color: isDark ? AppTheme.cardDark : Colors.white,
         boxShadow: [
@@ -792,6 +800,8 @@ class _HadithDetailScreenState extends ConsumerState<HadithDetailScreen> {
                   final wasBookmarked = await repo.isBookmarked(hadith.id);
                   await repo.toggleBookmark(hadith.id);
                   ref.invalidate(isBookmarkedProvider(hadith.id));
+                  ref.invalidate(statsProvider);
+                  ref.invalidate(bookmarkedHadithsProvider);
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
@@ -881,7 +891,7 @@ class _HadithDetailScreenState extends ConsumerState<HadithDetailScreen> {
                 ctx,
                 isDark,
                 'Copy All',
-                '${hadith.arabicText}\n\n${hadith.urduText}\n\n${hadith.englishText}\n\n— Sunan Ibn Majah, Hadith #${hadith.hadithNumber}',
+                '${hadith.arabicText}\n\n${hadith.urduText}\n\n${hadith.englishText}\n\n— Sunan An-Nasai, Hadith #${hadith.hadithNumber}',
                 Icons.select_all,
               ),
             ],
@@ -924,8 +934,8 @@ class _HadithDetailScreenState extends ConsumerState<HadithDetailScreen> {
                 onTap: () {
                   Navigator.pop(ctx);
                   final text =
-                      '${hadith.arabicText}\n\n${hadith.urduText}\n\n${hadith.englishText}\n\n— Sunan Ibn Majah, Hadith #${hadith.hadithNumber}';
-                  Share.share(text);
+                      '${hadith.arabicText}\n\n${hadith.urduText}\n\n${hadith.englishText}\n\n— Sunan An-Nasai, Hadith #${hadith.hadithNumber}';
+                  SharePlus.instance.share(ShareParams(text: text));
                 },
               ),
               ListTile(
@@ -1046,6 +1056,8 @@ class _HadithDetailScreenState extends ConsumerState<HadithDetailScreen> {
               if (controller.text.isNotEmpty) {
                 final repo = ref.read(hadithRepositoryProvider);
                 await repo.addNote(hadith.id, controller.text);
+                ref.invalidate(statsProvider);
+                ref.invalidate(allNotesWithInfoProvider);
                 if (ctx.mounted) Navigator.pop(ctx);
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -1113,6 +1125,8 @@ class _HadithDetailScreenState extends ConsumerState<HadithDetailScreen> {
                                   c.id,
                                   hadith.id,
                                 );
+                                ref.invalidate(collectionHadithsProvider(c.id));
+                                ref.invalidate(collectionsProvider);
                                 if (ctx.mounted) Navigator.pop(ctx);
                                 if (context.mounted) {
                                   ScaffoldMessenger.of(context).showSnackBar(

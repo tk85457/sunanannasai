@@ -25,8 +25,8 @@ class AppSettings {
     this.showArabic = true,
     this.showUrdu = true,
     this.showEnglish = true,
-    this.arabicFontSize = 24.0,
-    this.urduFontSize = 20.0,
+    this.arabicFontSize = 28.0,
+    this.urduFontSize = 24.0,
     this.englishFontSize = 18.0,
     this.arabicFontFamily = 'AlQalam',
     this.urduFontFamily = 'Nastaleeq',
@@ -92,8 +92,8 @@ class SettingsNotifier extends Notifier<AppSettings> {
       showArabic: _prefs.getBool('showArabic') ?? true,
       showUrdu: _prefs.getBool('showUrdu') ?? true,
       showEnglish: _prefs.getBool('showEnglish') ?? true,
-      arabicFontSize: _prefs.getDouble('arabicFontSize') ?? 24.0,
-      urduFontSize: _prefs.getDouble('urduFontSize') ?? 20.0,
+      arabicFontSize: _prefs.getDouble('arabicFontSize') ?? 28.0,
+      urduFontSize: _prefs.getDouble('urduFontSize') ?? 24.0,
       englishFontSize: _prefs.getDouble('englishFontSize') ?? 18.0,
       arabicFontFamily: _prefs.getString('arabicFontFamily') ?? 'AlQalam',
       urduFontFamily: _prefs.getString('urduFontFamily') ?? 'Nastaleeq',
@@ -206,4 +206,6 @@ final sharedPreferencesProvider = Provider<SharedPreferences>((ref) {
   throw UnimplementedError('Initialize this in main.dart');
 });
 
-final settingsProvider = NotifierProvider<SettingsNotifier, AppSettings>(SettingsNotifier.new);
+final settingsProvider = NotifierProvider<SettingsNotifier, AppSettings>(
+  SettingsNotifier.new,
+);

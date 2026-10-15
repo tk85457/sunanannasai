@@ -10,6 +10,7 @@ import '../../data/repositories/hadith_repository.dart';
 import '../../domain/models/models.dart';
 import '../settings/settings_provider.dart';
 import '../common/widgets/shimmer_loading.dart';
+import '../../core/ads/ad_service.dart';
 
 final chaptersProvider = FutureProvider<List<Chapter>>((ref) async {
   final repo = ref.watch(hadithRepositoryProvider);
@@ -65,11 +66,34 @@ class HomeScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text(
-          'Sunan Ibn Majah',
+          'Sunan An-Nasai',
           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
         ),
         centerTitle: true,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.volunteer_activism, color: Colors.amber),
+            tooltip: 'Support App (Watch Ad)',
+            onPressed: () {
+              HapticFeedback.heavyImpact();
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Loading Rewarded Ad... Thank you! 💚'),
+                  duration: Duration(seconds: 2),
+                ),
+              );
+              AdService.showRewardedAd(
+                onUserEarnedReward: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('JazakAllah Khair! Thank you for supporting the app! 💚'),
+                      backgroundColor: Color(0xFF0A7E47),
+                    ),
+                  );
+                },
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.settings),
             onPressed: () {
@@ -215,8 +239,12 @@ class HomeScreen extends ConsumerWidget {
         final primary = Theme.of(context).primaryColor;
         // Create darker and lighter variants for gradient
         final HSLColor hsl = HSLColor.fromColor(primary);
-        final darkVariant = hsl.withLightness((hsl.lightness * 0.5).clamp(0.0, 1.0)).toColor();
-        final midVariant = hsl.withLightness((hsl.lightness * 0.7).clamp(0.0, 1.0)).toColor();
+        final darkVariant = hsl
+            .withLightness((hsl.lightness * 0.5).clamp(0.0, 1.0))
+            .toColor();
+        final midVariant = hsl
+            .withLightness((hsl.lightness * 0.7).clamp(0.0, 1.0))
+            .toColor();
         return Container(
           margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           decoration: BoxDecoration(
@@ -490,15 +518,10 @@ class HomeScreen extends ConsumerWidget {
           _showFindHadithDialog(context, ref);
         },
       ),
-      _GridItem(
-        Icons.search_rounded,
-        const Color(0xFFE65100),
-        'Search',
-        () {
-          HapticFeedback.lightImpact();
-          context.go('/home/search');
-        },
-      ),
+      _GridItem(Icons.search_rounded, const Color(0xFFE65100), 'Search', () {
+        HapticFeedback.lightImpact();
+        context.go('/home/search');
+      }),
       _GridItem(
         Icons.bookmark_rounded,
         const Color(0xFFC62828),
@@ -541,19 +564,15 @@ class HomeScreen extends ConsumerWidget {
           _showFeedbackDialog(context);
         },
       ),
-      _GridItem(
-        Icons.share_rounded,
-        const Color(0xFF4527A0),
-        'Share App',
-        () {
-          HapticFeedback.lightImpact();
-          SharePlus.instance.share(
-            ShareParams(
-              text: 'Download Sunan Ibn Majah app — Read authentic Hadiths with Urdu, Arabic & English translations:\nhttps://play.google.com/store/apps/details?id=app.sunanibnmajah',
-            ),
-          );
-        },
-      ),
+      _GridItem(Icons.share_rounded, const Color(0xFF4527A0), 'Share App', () {
+        HapticFeedback.lightImpact();
+        SharePlus.instance.share(
+          ShareParams(
+            text:
+                'Download Sunan An-Nasai app — Read authentic Hadiths with Urdu, Arabic & English translations:\nhttps://play.google.com/store/apps/details?id=app.sunanannasai',
+          ),
+        );
+      }),
     ];
 
     return Container(
@@ -591,11 +610,7 @@ class HomeScreen extends ConsumerWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(
-                    item.icon,
-                    size: 32,
-                    color: item.color,
-                  ),
+                  Icon(item.icon, size: 32, color: item.color),
                   const SizedBox(height: 8),
                   Text(
                     item.label,
@@ -668,7 +683,7 @@ class HomeScreen extends ConsumerWidget {
               onTap: () async {
                 final repo = ref.read(hadithRepositoryProvider);
                 final data = await repo.exportUserData();
-                Navigator.pop(ctx);
+                if (ctx.mounted) Navigator.pop(ctx);
                 final text = jsonEncode(data);
                 await Clipboard.setData(ClipboardData(text: text));
                 if (context.mounted) {

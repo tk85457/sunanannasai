@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi_web/sqflite_ffi_web.dart';
@@ -12,6 +13,13 @@ import 'data/isar/isar_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      systemNavigationBarColor: Colors.transparent,
+    ),
+  );
 
   // Initialize sqflite for web or desktop
   if (kIsWeb) {
@@ -25,21 +33,21 @@ void main() async {
 
   // Initialize Isar in background on non-web platforms
   if (!kIsWeb) {
-    IsarService.instance.init();
+    IsarService.instance.init().catchError((e) {
+      debugPrint('Error initializing IsarService: $e');
+    });
   }
 
   runApp(
     ProviderScope(
-      overrides: [
-        sharedPreferencesProvider.overrideWithValue(prefs),
-      ],
-      child: const SunanIbnMajahApp(),
+      overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+      child: const SunanAnNasaiApp(),
     ),
   );
 }
 
-class SunanIbnMajahApp extends ConsumerWidget {
-  const SunanIbnMajahApp({super.key});
+class SunanAnNasaiApp extends ConsumerWidget {
+  const SunanAnNasaiApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -48,9 +56,11 @@ class SunanIbnMajahApp extends ConsumerWidget {
     final primaryColor = AppTheme.getPrimaryColor(settings.uiColor);
 
     return MaterialApp.router(
-      title: 'Sunan Ibn Majah - Hadith',
+      title: 'Sunan An-Nasai (3 Languages)',
       debugShowCheckedModeBanner: false,
-      theme: settings.isDarkMode ? AppTheme.darkTheme(primaryColor) : AppTheme.lightTheme(primaryColor),
+      theme: settings.isDarkMode
+          ? AppTheme.darkTheme(primaryColor)
+          : AppTheme.lightTheme(primaryColor),
       routerConfig: goRouter,
     );
   }

@@ -164,7 +164,7 @@ class CollectionDetailScreen extends ConsumerWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Sunan Ibn Majah',
+                        'Sunan An-Nasai',
                         style: TextStyle(
                           fontSize: 11,
                           color: Colors.grey.shade500,
