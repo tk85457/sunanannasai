@@ -8,6 +8,7 @@ import 'package:sqflite_common_ffi_web/sqflite_ffi_web.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'theme/app_theme.dart';
 import 'core/router.dart';
+import 'core/ads/ad_free_service.dart';
 import 'features/settings/settings_provider.dart';
 import 'data/isar/isar_service.dart';
 
@@ -30,6 +31,7 @@ void main() async {
   }
 
   final prefs = await SharedPreferences.getInstance();
+  AdFreeService.init(prefs); // 24h banner-free state must be known before first frame
 
   // Initialize Isar in background on non-web platforms
   if (!kIsWeb) {

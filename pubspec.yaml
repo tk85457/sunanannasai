@@ -1,7 +1,7 @@
 name: sunan_an_nasai
 description: "Sunan An-Nasai – All Languages - Production Hadith App"
 publish_to: 'none'
-version: 1.1.4+8
+version: 1.1.5+9
 
 environment:
   sdk: ^3.10.7
